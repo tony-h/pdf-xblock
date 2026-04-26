@@ -85,6 +85,15 @@ function PdfXBlock(runtime, element, config) {
             finalUrl = config.proxy_url + '?url=' + encodeURIComponent(url);
         }
 
+        // Ensure pdfjsLib is loaded (CDN might take a moment)
+        if (typeof pdfjsLib === 'undefined') {
+            setTimeout(function() { loadPdf(url); }, 500);
+            return;
+        }
+
+        // Set worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
         pdfjsLib.getDocument(finalUrl).promise.then(function(pdfDoc_) {
             pdfDoc = pdfDoc_;
             element.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;

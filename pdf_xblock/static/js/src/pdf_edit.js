@@ -1,5 +1,5 @@
 function PdfStudioView(runtime, element, config) {
-    var saveUrl = runtime.handler_url(element, 'studio_submit');
+    var saveUrl = runtime.handlerUrl(element, 'studio_submit');
 
     $(element).find('.save-button').bind('click', function() {
         var data = {
