@@ -73,8 +73,8 @@ class PdfXBlock(XBlock):
         """
         Handler to save Studio edits.
         """
-        self.display_name = data.get('display_name')
-        self.pdf_url = data.get('pdf_url')
+        self.display_name = data.get('display_name', self.display_name)
+        self.pdf_url = data.get('pdf_url', self.pdf_url)
         return {'result': 'success'}
 
     @XBlock.handler

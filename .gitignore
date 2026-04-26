@@ -145,3 +145,7 @@ cython_debug/
 
 # OS X
 .DS_Store
+
+vite.config.ts
+tsconfig.json
+package.json

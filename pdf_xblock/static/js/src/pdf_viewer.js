@@ -75,7 +75,17 @@ function PdfXBlock(runtime, element, config) {
         element.querySelector('.pdf-zoom-val').textContent = Math.round(scale * 100) + '%';
     }
 
-    function loadPdf(url) {
+    function loadPdf(url, passedLib) {
+        if (!url) return;
+
+        // Ensure we have the library loaded and accessible
+        var pLib = passedLib || window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+        if (!pLib) {
+            errorOverlay.style.display = 'block';
+            errorMsg.textContent = 'PDF.js library is not defined/loaded.';
+            return;
+        }
+
         loadingOverlay.style.display = 'flex';
         errorOverlay.style.display = 'none';
 
@@ -85,10 +95,12 @@ function PdfXBlock(runtime, element, config) {
             finalUrl = config.proxy_url + '?url=' + encodeURIComponent(url);
         }
 
-        // Set worker (must be strictly same version as what we load below)
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // Set worker
+        if (pLib.GlobalWorkerOptions) {
+            pLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
 
-        window.pdfjsLib.getDocument(finalUrl).promise.then(function(pdfDoc_) {
+        pLib.getDocument(finalUrl).promise.then(function(pdfDoc_) {
             pdfDoc = pdfDoc_;
             element.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
             loadingOverlay.style.display = 'none';
@@ -103,14 +115,16 @@ function PdfXBlock(runtime, element, config) {
 
     // Helper to safely load pdf.js via RequireJS (Open edX) or plain script injection
     function initViewer(url) {
+        if (!url) return;
+
         if (typeof window.pdfjsLib !== 'undefined') {
-            loadPdf(url);
+            loadPdf(url, window.pdfjsLib);
         } else if (typeof require !== 'undefined') {
             require(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'], function (pdfjs) {
                 if (pdfjs) {
                     window.pdfjsLib = pdfjs;
                 }
-                loadPdf(url);
+                loadPdf(url, pdfjs);
             });
         } else {
             var script = document.createElement('script');
