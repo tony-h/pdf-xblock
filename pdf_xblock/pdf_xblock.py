@@ -62,11 +62,38 @@ class PdfXBlock(XBlock):
         frag.add_css(self.resource_string("static/css/pdf_edit.css"))
         frag.add_javascript(self.resource_string("static/js/src/pdf_edit.js"))
         
+        # Safely get course_id if running in actual Studio (SDK doesn't have it)
+        course_id = str(self.course_id) if hasattr(self, 'course_id') else ''
+
         frag.initialize_js('PdfStudioView', {
             'pdf_url': self.pdf_url,
-            'display_name': self.display_name
+            'display_name': self.display_name,
+            'course_id': course_id
         })
         return frag
+
+    @XBlock.handler
+    def proxy_pdf(self, request, suffix=''):
+        """
+        A proxy to fetch remote PDFs to bypass CORS.
+        """
+        target_url = request.params.get('url')
+        
+        if not target_url or not target_url.startswith(('http://', 'https://')):
+            return Response(status=400, body="Valid URL parameter required.")
+
+        try:
+            # Stream the request to avoid memory limits on large PDFs
+            response = requests.get(target_url, stream=True, timeout=15)
+            response.raise_for_status()
+            
+            return Response(
+                app_iter=response.iter_content(chunk_size=8192),
+                content_type='application/pdf',
+                headerlist=[('Access-Control-Allow-Origin', '*')]
+            )
+        except requests.exceptions.RequestException as e:
+            return Response(status=502, body=f"Failed to fetch PDF: {str(e)}")
 
     @XBlock.json_handler
     def studio_submit(self, data, suffix=''):
@@ -77,29 +104,6 @@ class PdfXBlock(XBlock):
         self.pdf_url = data.get('pdf_url', self.pdf_url)
         return {'result': 'success'}
 
-    @XBlock.handler
-    def proxy_pdf(self, request, suffix=''):
-        """
-        A proxy to fetch remote PDFs to bypass CORS.
-        """
-        target_url = request.params.get('url')
-        if not target_url:
-            return Response(status=400, body="URL parameter missing")
-
-        try:
-            # We don't want to follow redirects to internal networks, etc.
-            # Real implementation should have basic security headers
-            response = requests.get(target_url, stream=True, timeout=10)
-            response.raise_for_status()
-            
-            return Response(
-                body=response.content,
-                content_type=response.headers.get('Content-Type', 'application/pdf'),
-                headerlist=[('Access-Control-Allow-Origin', '*')]
-            )
-        except Exception as e:
-            return Response(status=500, body=str(e))
-
     @staticmethod
     def workbench_scenarios():
         """A canned scenario for display in the workbench."""
@@ -107,7 +111,7 @@ class PdfXBlock(XBlock):
             ("PDF XBlock",
              """<pdfxblock/>
              """),
-            ("PDF XBlock (Custom PDF)",
+            ("PDF XBlock (Workbench)",
              """<pdfxblock pdf_url="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"/>
              """),
         ]

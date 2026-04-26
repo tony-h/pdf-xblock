@@ -6,7 +6,7 @@ function PdfXBlock(runtime, element, config) {
     var pageNum = 1;
     var pageRendering = false;
     var pageNumPending = null;
-    var scale = 1.0;
+    var scale = 1.0; // Adjust default scale if needed
     
     var loadingOverlay = element.querySelector('.pdf-loading-overlay');
     var errorOverlay = element.querySelector('.pdf-error-overlay');
@@ -75,68 +75,56 @@ function PdfXBlock(runtime, element, config) {
         element.querySelector('.pdf-zoom-val').textContent = Math.round(scale * 100) + '%';
     }
 
-    function loadPdf(url, passedLib) {
+    function loadPdf(url, pLib) {
         if (!url) return;
-
-        // Ensure we have the library loaded and accessible
-        var pLib = passedLib || window.pdfjsLib || window['pdfjs-dist/build/pdf'];
-        if (!pLib) {
-            errorOverlay.style.display = 'block';
-            errorMsg.textContent = 'PDF.js library is not defined/loaded.';
-            return;
-        }
-
         loadingOverlay.style.display = 'flex';
         errorOverlay.style.display = 'none';
 
-        // Check if we should use the proxy (remote URL)
         var finalUrl = url;
+        // Proxy remote URLs. Allow /static/ and /asset-v1: URLs to load directly
         if (url.startsWith('http') && !url.includes(window.location.host)) {
-            finalUrl = config.proxy_url + '?url=' + encodeURIComponent(url);
+            var separator = config.proxy_url.indexOf('?') > -1 ? '&' : '?';
+            finalUrl = config.proxy_url + separator + 'url=' + encodeURIComponent(url);
         }
 
-        // Set worker
-        if (pLib.GlobalWorkerOptions) {
-            pLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
-
-        pLib.getDocument(finalUrl).promise.then(function(pdfDoc_) {
-            pdfDoc = pdfDoc_;
-            element.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
-            loadingOverlay.style.display = 'none';
-            renderPage(pageNum);
-        }).catch(function(err) {
-            loadingOverlay.style.display = 'none';
-            errorOverlay.style.display = 'block';
-            errorMsg.textContent = 'Failed to load PDF: ' + err.message;
-            console.error('PDF JS ERROR:', err);
-        });
-    }
-
-    // Helper to safely load pdf.js via RequireJS (Open edX) or plain script injection
-    function initViewer(url) {
-        if (!url) return;
-
-        if (typeof window.pdfjsLib !== 'undefined') {
-            loadPdf(url, window.pdfjsLib);
-        } else if (typeof require !== 'undefined') {
-            require(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'], function (pdfjs) {
-                if (pdfjs) {
-                    window.pdfjsLib = pdfjs;
-                }
-                loadPdf(url, pdfjs);
+        // Fix CORS Worker issue via Blob URI
+        var workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        fetch(workerUrl)
+            .then(response => response.text())
+            .then(code => {
+                var blob = new Blob([code], { type: 'text/javascript' });
+                pLib.GlobalWorkerOptions.workerPort = new Worker(URL.createObjectURL(blob));
+                
+                return pLib.getDocument(finalUrl).promise;
+            })
+            .then(function(pdfDoc_) {
+                pdfDoc = pdfDoc_;
+                element.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
+                loadingOverlay.style.display = 'none';
+                renderPage(pageNum);
+            })
+            .catch(function(err) {
+                loadingOverlay.style.display = 'none';
+                errorOverlay.style.display = 'block';
+                errorMsg.textContent = 'Failed to load PDF: ' + err.message;
+                console.error('PDF JS ERROR:', err);
             });
-        } else {
-            var script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-            script.onload = function() {
-                loadPdf(url);
-            };
-            document.head.appendChild(script);
-        }
     }
 
-    // Bind events
+    // Open edX robust loader
+    if (typeof require !== 'undefined') {
+        require(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'], function (pdfjsLib) {
+            loadPdf(config.pdf_url, window.pdfjsLib || pdfjsLib);
+        });
+    } else {
+        // Fallback for XBlock SDK or environments without RequireJS
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = function() { loadPdf(config.pdf_url, window.pdfjsLib); };
+        document.head.appendChild(script);
+    }
+
+    // Bind UI events
     element.querySelector('.pdf-prev').addEventListener('click', onPrevPage);
     element.querySelector('.pdf-next').addEventListener('click', onNextPage);
     element.querySelector('.pdf-zoom-in').addEventListener('click', onZoomIn);
@@ -145,9 +133,4 @@ function PdfXBlock(runtime, element, config) {
         if (canvas.requestFullscreen) canvas.requestFullscreen();
         else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
     });
-
-    // Initial Load
-    if (config.pdf_url) {
-        initViewer(config.pdf_url);
-    }
 }
