@@ -1,4 +1,5 @@
 function PdfXBlock(runtime, element, config) {
+    var $ = window.jQuery || $;
     var canvas = element.querySelector('#pdf-render-canvas');
     var ctx = canvas.getContext('2d');
     
@@ -6,7 +7,7 @@ function PdfXBlock(runtime, element, config) {
     var pageNum = 1;
     var pageRendering = false;
     var pageNumPending = null;
-    var scale = 1.0; // Adjust default scale if needed
+    var scale = 1.0; 
     
     var loadingOverlay = element.querySelector('.pdf-loading-overlay');
     var errorOverlay = element.querySelector('.pdf-error-overlay');
@@ -14,7 +15,6 @@ function PdfXBlock(runtime, element, config) {
 
     function renderPage(num) {
         pageRendering = true;
-        // Using getPage to fetch a specific page
         pdfDoc.getPage(num).then(function(page) {
             var viewport = page.getViewport({scale: scale});
             canvas.height = viewport.height;
@@ -87,11 +87,11 @@ function PdfXBlock(runtime, element, config) {
             finalUrl = config.proxy_url + separator + 'url=' + encodeURIComponent(url);
         }
 
-        // Fix CORS Worker issue via Blob URI
+        // Fetch worker via Blob to bypass strict CORS policies on Workers
         var workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         fetch(workerUrl)
-            .then(response => response.text())
-            .then(code => {
+            .then(function(response) { return response.text(); })
+            .then(function(code) {
                 var blob = new Blob([code], { type: 'text/javascript' });
                 pLib.GlobalWorkerOptions.workerPort = new Worker(URL.createObjectURL(blob));
                 
@@ -111,17 +111,43 @@ function PdfXBlock(runtime, element, config) {
             });
     }
 
-    // Open edX robust loader
-    if (typeof require !== 'undefined') {
-        require(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'], function (pdfjsLib) {
-            loadPdf(config.pdf_url, window.pdfjsLib || pdfjsLib);
-        });
-    } else {
-        // Fallback for XBlock SDK or environments without RequireJS
-        var script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        script.onload = function() { loadPdf(config.pdf_url, window.pdfjsLib); };
-        document.head.appendChild(script);
+    function initViewer(url) {
+        if (!url) return;
+
+        // If already loaded successfully on the page, use it immediately
+        if (window.pdfjsLib) {
+            loadPdf(url, window.pdfjsLib);
+            return;
+        }
+
+        // Use native fetch to avoid jQuery injecting Django CSRF tokens
+        fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')
+            .then(function(response) {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.text();
+            })
+            .then(function(code) {
+                var script = document.createElement('script');
+                script.type = 'text/javascript';
+                // Note: The \n before })(); is critical in case the CDN code ends with a // comment
+                script.text = "(function() { var define = undefined;\n" + code + "\n})();";
+                document.head.appendChild(script);
+                
+                // Allow a tiny delay for the script execution to finish attaching to window
+                setTimeout(function() {
+                    if (window.pdfjsLib) {
+                        loadPdf(url, window.pdfjsLib);
+                    } else {
+                        errorMsg.textContent = 'PDF library failed to attach globally.';
+                        errorOverlay.style.display = 'block';
+                    }
+                }, 50);
+            })
+            .catch(function(error) {
+                errorMsg.textContent = 'Network Error: Failed to download PDF.js from CDN.';
+                errorOverlay.style.display = 'block';
+                console.error('Fetch Error:', error);
+            });
     }
 
     // Bind UI events
@@ -133,4 +159,7 @@ function PdfXBlock(runtime, element, config) {
         if (canvas.requestFullscreen) canvas.requestFullscreen();
         else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
     });
+
+    // Fire the initialization
+    initViewer(config.pdf_url);
 }
