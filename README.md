@@ -1,11 +1,36 @@
-<div align="center">
+# PDF XBlock
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A clean, CORS-friendly PDF viewer XBlock for Open edX.
 
-  <h1>Built with AI Studio</h2>
+## Features
+- Displays PDF files within Open edX courses.
+- Supports Studio URLs (e.g., `/static/my-document.pdf`).
+- Includes a CORS proxy to handle external PDF URLs that don't have permissive headers.
+- Zoom controls, page navigation, and fullscreen mode.
+- Optimized for Tutor v21.0.x.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Installation
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+Add this repository to your Tutor `config.yml` in the `OPENEDX_EXTRA_PIP_REQUIREMENTS` section:
 
-</div>
+```yaml
+OPENEDX_EXTRA_PIP_REQUIREMENTS:
+    - git+https://github.com/tony-h/pdf-xblock.git
+```
+
+Then rebuild your Open edX images:
+
+```bash
+tutor images build openedx
+```
+
+## Usage
+
+1. Go to **Studio > Settings > Advanced Settings**.
+2. Add `"pdfxblock"` to the **Advanced Module List**.
+3. In a unit, select **Advanced** and then **PDF Viewer**.
+4. Paste the URL of your PDF (Remote URL or `/static/filename.pdf`).
+
+## Attribution
+
+This XBlock was developed using Google AI Studio.

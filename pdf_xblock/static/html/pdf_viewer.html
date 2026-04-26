@@ -1,0 +1,33 @@
+<div class="modern-pdf-block-wrapper" data-pdf-url="{self.pdf_url}">
+    <div class="pdf-viewer-header">
+        <div class="pdf-controls">
+            <button class="pdf-btn pdf-prev">Previous</button>
+            <span class="pdf-page-info text-sm">
+                Page <span class="pdf-page-num">-</span> / <span class="pdf-page-count">-</span>
+            </span>
+            <button class="pdf-btn pdf-next">Next</button>
+            
+            <div class="pdf-zoom-controls">
+                <button class="pdf-btn pdf-zoom-out">-</button>
+                <span class="pdf-zoom-val text-xs">100%</span>
+                <button class="pdf-btn pdf-zoom-in">+</button>
+            </div>
+        </div>
+        
+        <div class="pdf-actions">
+            <a href="{self.pdf_url}" target="_blank" class="pdf-btn pdf-download" download>Download</a>
+            <button class="pdf-btn pdf-fullscreen">Full Screen</button>
+        </div>
+    </div>
+
+    <div class="pdf-container">
+        <canvas id="pdf-render-canvas"></canvas>
+        <div class="pdf-loading-overlay">
+            <div class="pdf-spinner"></div>
+            <p>Loading PDF...</p>
+        </div>
+        <div class="pdf-error-overlay" style="display:none;">
+            <p class="error-msg"></p>
+        </div>
+    </div>
+</div>

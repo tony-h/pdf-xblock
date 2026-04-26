@@ -1,0 +1,49 @@
+<div class="modern-pdf-edit-wrapper">
+    <div class="edit-header">
+        <h3>Edit PDF Viewer</h3>
+    </div>
+
+    <div class="edit-content">
+        <div class="form-group">
+            <label for="edit_display_name">Component Display Name</label>
+            <input type="text" id="edit_display_name" value="{self.display_name}" />
+            <span class="help-text">This title is displayed to students and in the navigation.</span>
+        </div>
+
+        <div class="form-group">
+            <label for="edit_pdf_url">PDF Document URL</label>
+            <div class="input-with-button">
+                <input type="text" id="edit_pdf_url" value="{self.pdf_url}" placeholder="/static/filename.pdf or https://..." />
+            </div>
+            <span class="help-text">Enter the full URL or a relative Studio path (e.g., /static/my-doc.pdf).</span>
+        </div>
+
+        <div class="asset-search-section">
+            <div class="section-title">
+                <h4>Browse Course Assets</h4>
+                <p>Quickly find PDFs already uploaded to Studio.</p>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" class="asset-search-input" placeholder="Search by filename..." />
+                <button class="search-btn">Search</button>
+            </div>
+
+            <div class="asset-list-container">
+                <div class="asset-list">
+                    <!-- Assets will be listed here -->
+                    <p class="text-secondary italic">Enter search term to find files...</p>
+                </div>
+            </div>
+            
+            <div class="upload-hint">
+                <p>Need to upload? <a href="/asset-library/{{{{course_id}}}}" target="_blank" class="studio-link">Open Content Library</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="edit-actions">
+        <button class="btn btn-primary save-button">Save Changes</button>
+        <button class="btn cancel-button">Cancel</button>
+    </div>
+</div>
