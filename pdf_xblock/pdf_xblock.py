@@ -45,8 +45,6 @@ class PdfXBlock(XBlock):
         frag.add_css(self.resource_string("static/css/pdf_viewer.css"))
         
         # Add JavaScript and initialize
-        # We use a external CDN for pdf.js to keep the XBlock lightweight
-        frag.add_javascript_url("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js")
         frag.add_javascript(self.resource_string("static/js/src/pdf_viewer.js"))
         
         frag.initialize_js('PdfXBlock', {
@@ -110,6 +108,6 @@ class PdfXBlock(XBlock):
              """<pdfxblock/>
              """),
             ("PDF XBlock (Custom PDF)",
-             """<pdfxblock pdf_url="https://www.africau.edu/images/default/sample.pdf"/>
+             """<pdfxblock pdf_url="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"/>
              """),
         ]

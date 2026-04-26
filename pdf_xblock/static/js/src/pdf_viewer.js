@@ -85,16 +85,10 @@ function PdfXBlock(runtime, element, config) {
             finalUrl = config.proxy_url + '?url=' + encodeURIComponent(url);
         }
 
-        // Ensure pdfjsLib is loaded (CDN might take a moment)
-        if (typeof pdfjsLib === 'undefined') {
-            setTimeout(function() { loadPdf(url); }, 500);
-            return;
-        }
+        // Set worker (must be strictly same version as what we load below)
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        // Set worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        pdfjsLib.getDocument(finalUrl).promise.then(function(pdfDoc_) {
+        window.pdfjsLib.getDocument(finalUrl).promise.then(function(pdfDoc_) {
             pdfDoc = pdfDoc_;
             element.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
             loadingOverlay.style.display = 'none';
@@ -105,6 +99,27 @@ function PdfXBlock(runtime, element, config) {
             errorMsg.textContent = 'Failed to load PDF: ' + err.message;
             console.error('PDF JS ERROR:', err);
         });
+    }
+
+    // Helper to safely load pdf.js via RequireJS (Open edX) or plain script injection
+    function initViewer(url) {
+        if (typeof window.pdfjsLib !== 'undefined') {
+            loadPdf(url);
+        } else if (typeof require !== 'undefined') {
+            require(['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'], function (pdfjs) {
+                if (pdfjs) {
+                    window.pdfjsLib = pdfjs;
+                }
+                loadPdf(url);
+            });
+        } else {
+            var script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            script.onload = function() {
+                loadPdf(url);
+            };
+            document.head.appendChild(script);
+        }
     }
 
     // Bind events
@@ -119,6 +134,6 @@ function PdfXBlock(runtime, element, config) {
 
     // Initial Load
     if (config.pdf_url) {
-        loadPdf(config.pdf_url);
+        initViewer(config.pdf_url);
     }
 }
