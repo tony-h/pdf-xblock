@@ -1,6 +1,11 @@
 function PdfXBlock(runtime, element, config) {
     var $ = window.jQuery || $;
-    var canvas = element.querySelector('#pdf-render-canvas');
+    
+    // CRITICAL FIX: Open edX passes a jQuery object, SDK might pass native DOM. 
+    // This unwraps the jQuery object safely.
+    var el = element[0] || element; 
+    
+    var canvas = el.querySelector('#pdf-render-canvas');
     var ctx = canvas.getContext('2d');
     
     var pdfDoc = null;
@@ -9,9 +14,9 @@ function PdfXBlock(runtime, element, config) {
     var pageNumPending = null;
     var scale = 1.0; 
     
-    var loadingOverlay = element.querySelector('.pdf-loading-overlay');
-    var errorOverlay = element.querySelector('.pdf-error-overlay');
-    var errorMsg = element.querySelector('.error-msg');
+    var loadingOverlay = el.querySelector('.pdf-loading-overlay');
+    var errorOverlay = el.querySelector('.pdf-error-overlay');
+    var errorMsg = el.querySelector('.error-msg');
 
     function renderPage(num) {
         pageRendering = true;
@@ -35,7 +40,7 @@ function PdfXBlock(runtime, element, config) {
             });
         });
 
-        element.querySelector('.pdf-page-num').textContent = num;
+        el.querySelector('.pdf-page-num').textContent = num;
     }
 
     function queueRenderPage(num) {
@@ -72,7 +77,7 @@ function PdfXBlock(runtime, element, config) {
     }
 
     function updateZoomLabel() {
-        element.querySelector('.pdf-zoom-val').textContent = Math.round(scale * 100) + '%';
+        el.querySelector('.pdf-zoom-val').textContent = Math.round(scale * 100) + '%';
     }
 
     function loadPdf(url, pLib) {
@@ -99,7 +104,7 @@ function PdfXBlock(runtime, element, config) {
             })
             .then(function(pdfDoc_) {
                 pdfDoc = pdfDoc_;
-                element.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
+                el.querySelector('.pdf-page-count').textContent = pdfDoc.numPages;
                 loadingOverlay.style.display = 'none';
                 renderPage(pageNum);
             })
@@ -114,13 +119,11 @@ function PdfXBlock(runtime, element, config) {
     function initViewer(url) {
         if (!url) return;
 
-        // If already loaded successfully on the page, use it immediately
         if (window.pdfjsLib) {
             loadPdf(url, window.pdfjsLib);
             return;
         }
 
-        // Use native fetch to avoid jQuery injecting Django CSRF tokens
         fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js')
             .then(function(response) {
                 if (!response.ok) throw new Error('Network response was not ok');
@@ -129,11 +132,9 @@ function PdfXBlock(runtime, element, config) {
             .then(function(code) {
                 var script = document.createElement('script');
                 script.type = 'text/javascript';
-                // Note: The \n before })(); is critical in case the CDN code ends with a // comment
                 script.text = "(function() { var define = undefined;\n" + code + "\n})();";
                 document.head.appendChild(script);
                 
-                // Allow a tiny delay for the script execution to finish attaching to window
                 setTimeout(function() {
                     if (window.pdfjsLib) {
                         loadPdf(url, window.pdfjsLib);
@@ -151,11 +152,11 @@ function PdfXBlock(runtime, element, config) {
     }
 
     // Bind UI events
-    element.querySelector('.pdf-prev').addEventListener('click', onPrevPage);
-    element.querySelector('.pdf-next').addEventListener('click', onNextPage);
-    element.querySelector('.pdf-zoom-in').addEventListener('click', onZoomIn);
-    element.querySelector('.pdf-zoom-out').addEventListener('click', onZoomOut);
-    element.querySelector('.pdf-fullscreen').addEventListener('click', function() {
+    el.querySelector('.pdf-prev').addEventListener('click', onPrevPage);
+    el.querySelector('.pdf-next').addEventListener('click', onNextPage);
+    el.querySelector('.pdf-zoom-in').addEventListener('click', onZoomIn);
+    el.querySelector('.pdf-zoom-out').addEventListener('click', onZoomOut);
+    el.querySelector('.pdf-fullscreen').addEventListener('click', function() {
         if (canvas.requestFullscreen) canvas.requestFullscreen();
         else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
     });
