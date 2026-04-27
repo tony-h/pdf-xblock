@@ -109,18 +109,22 @@
     position: relative;
     padding: 20px;
     background: #525659;
-    display: flex;
-    justify-content: center;
+    
+    /* Changed to block to allow proper scrolling */
+    display: block; 
+    text-align: center; 
+    
     min-height: 400px;
-    /* Removed max-height: 800px to allow the container to expand */
-    overflow: auto;
+    overflow: auto; /* Triggers the scrollbars when the PDF gets too large */
 }
 
 #pdf-render-canvas {
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     background: white;
-    /* These three rules prevent the squished font and aspect ratio issues */
-    max-width: 100%;
-    height: auto !important; 
-    display: block;
+    
+    /* Centers the canvas inside the block container */
+    display: inline-block; 
+    
+    /* IMPORTANT: We removed max-width: 100% and height: auto. 
+       This allows the JavaScript to freely resize the canvas when zooming! */
 }
