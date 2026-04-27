@@ -1,61 +1,83 @@
 function PdfStudioView(runtime, element, config) {
-    var saveUrl = runtime.handlerUrl(element, 'studio_submit');
+    var $ = window.jQuery || $;
+    var el = $(element);
+    var courseId = config.course_id;
 
-    $(element).find('.save-button').bind('click', function() {
-        var data = {
-            display_name: $(element).find('#edit_display_name').val(),
-            pdf_url: $(element).find('#edit_pdf_url').val()
-        };
+    // 1. Dynamically set the Content Library URL for the Authoring MFE
+    if (courseId) {
+        var currentHost = window.location.hostname;
+        var appsHost = currentHost.replace('studio.', 'apps.');
+        
+        // Build the correct Authoring MFE path
+        var libraryUrl = window.location.protocol + '//' + appsHost + '/authoring/course/' + courseId + '/assets';
+        el.find('.studio-link').attr('href', libraryUrl);
+    }
 
-        runtime.notify('save', {state: 'start'});
-        $.post(saveUrl, JSON.stringify(data)).done(function(response) {
-            runtime.notify('save', {state: 'end'});
+    // 2. Handle Asset Search with fuzzy client-side filtering
+    el.find('.search-btn').bind('click', function(e) {
+        e.preventDefault();
+        var listContainer = el.find('.asset-list');
+        
+        if (!courseId) {
+            listContainer.html('<p style="color:red;">Asset search is only available in Open edX Studio.</p>');
+            return;
+        }
+
+        var query = el.find('.asset-search-input').val().toLowerCase();
+        listContainer.html('<p>Searching...</p>');
+
+        // Fetch up to 100 PDFs and filter client-side to bypass API character/casing issues
+        $.ajax({
+            url: '/api/content/v1/assets/?course_id=' + encodeURIComponent(courseId) + '&asset_type=pdf&page_size=100',
+            type: 'GET',
+            success: function(data) {
+                if (data.results && data.results.length > 0) {
+                    
+                    var filtered = data.results.filter(function(asset) {
+                        return asset.display_name.toLowerCase().indexOf(query) !== -1;
+                    });
+
+                    if (filtered.length > 0) {
+                        listContainer.empty();
+                        filtered.forEach(function(asset) {
+                            var assetItem = $('<div style="cursor:pointer; padding:8px; border-bottom:1px solid #eee;">' + asset.display_name + '</div>');
+                            
+                            // Add a hover effect for better UX
+                            assetItem.hover(
+                                function() { $(this).css('background-color', '#f5f5f5'); },
+                                function() { $(this).css('background-color', 'transparent'); }
+                            );
+                            
+                            assetItem.bind('click', function() {
+                                el.find('#edit_pdf_url').val(asset.url.replace('/c4x', ''));
+                                listContainer.html('<p style="color:green; font-weight:bold;">Selected: ' + asset.display_name + '</p>');
+                            });
+                            listContainer.append(assetItem);
+                        });
+                    } else {
+                        listContainer.html('<p>No PDFs found matching "' + query + '".</p>');
+                    }
+                } else {
+                    listContainer.html('<p>No PDFs found in this course.</p>');
+                }
+            },
+            error: function() {
+                listContainer.html('<p style="color:red;">Error fetching course assets.</p>');
+            }
         });
     });
 
-    $(element).find('.cancel-button').bind('click', function() {
-        runtime.notify('cancel', {});
-    });
-
-    // Asset Search Simulation
-    var searchInput = $(element).find('.asset-search-input');
-    var assetList = $(element).find('.asset-list');
-
-    $(element).find('.search-btn').bind('click', function() {
-        var term = searchInput.val().toLowerCase();
-        if (!term) return;
-
-        // In a real XBlock, we would fetch from /api/courses/v1/assets/
-        // Here we mock a response for demonstration
-        assetList.html('<p class="text-secondary italic">Searching assets...</p>');
-
-        setTimeout(function() {
-            var mockAssets = [
-                { name: 'lecture_notes.pdf', url: '/static/lecture_notes.pdf' },
-                { name: 'syllabus_v2.pdf', url: '/static/syllabus_v2.pdf' },
-                { name: 'lab_guide.pdf', url: '/static/lab_guide.pdf' }
-            ];
-
-            var filtered = mockAssets.filter(function(a) { 
-                return a.name.toLowerCase().indexOf(term) > -1; 
-            });
-
-            if (filtered.length === 0) {
-                assetList.html('<p class="text-secondary italic">No assets found matching "' + term + '"</p>');
-            } else {
-                assetList.empty();
-                filtered.forEach(function(asset) {
-                    var item = $('<div class="asset-item">' +
-                        '<span class="asset-name">' + asset.name + '</span>' +
-                        '<button class="btn btn-secondary select-asset" data-url="' + asset.url + '">Select</button>' +
-                    '</div>');
-                    assetList.append(item);
-                });
-
-                assetList.find('.select-asset').click(function() {
-                    $(element).find('#edit_pdf_url').val($(this).data('url'));
-                });
-            }
-        }, 600);
-    });
+    // 3. Return the save method to hook into Open edX's native modal buttons
+    return {
+        save: function() {
+            var handlerUrl = runtime.handlerUrl(element, 'studio_submit');
+            var data = {
+                display_name: el.find('#edit_display_name').val(),
+                pdf_url: el.find('#edit_pdf_url').val()
+            };
+            
+            // Return the deferred object so Studio knows when saving completes
+            return $.post(handlerUrl, JSON.stringify(data));
+        }
+    };
 }
