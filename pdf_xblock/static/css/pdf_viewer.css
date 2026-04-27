@@ -97,3 +97,22 @@
 
 .text-sm { font-size: 0.875rem; }
 .text-xs { font-size: 0.75rem; }
+
+/* Responsive Overrides */
+.modern-pdf-block-wrapper {
+    min-height: 400px;
+    height: auto !important;
+    width: 100%;
+}
+
+.pdf-container {
+    height: auto !important;
+    overflow: hidden; /* Contains the canvas neatly */
+}
+
+#pdf-render-canvas {
+    max-width: 100%;
+    height: auto !important; 
+    display: block;
+    margin: 0 auto; /* Centers the PDF if it is narrower than the container */
+}
